@@ -44,7 +44,7 @@ class NewImageHandler(FileSystemEventHandler):
         if not event.is_directory:
             self.change_callback()
 
-class WatcherWorker(QObject):
+class Watcher(QObject):
     """Qt-friendly wrapper for the Watchdog library."""
     new_image_detected = Signal(str)
     folder_changed = Signal()

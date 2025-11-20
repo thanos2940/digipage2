@@ -19,21 +19,17 @@ from digipage.core.theme import THEMES, generate_stylesheet, lighten_color
 from digipage.ui.widgets.image_viewer import ImageViewer, InteractionMode
 from digipage.workers.scanner_worker import ScanWorker # ScannerWorker
 from digipage.workers.watcher import Watcher # Assuming you refactored watcher
-from digipage.workers.image_processor import ImageProcessor # Assuming image processor
+from digipage.workers.image_worker import ImageProcessor # Assuming image processor
 # Note: You might need to update worker imports depending on where they ended up
 # For now, using the pattern seen in your uploads:
 # from workers import ScanWorker, Watcher, ImageProcessor, natural_sort_key
 # Adapting to likely package structure:
-try:
-    from digipage.workers import ScanWorker, Watcher, ImageProcessor, natural_sort_key
-except ImportError:
-    # Fallback if workers aren't fully packaged yet
-    import workers as ScanWorker
+from digipage.workers import ScanWorker, Watcher, ImageProcessor, natural_sort_key
     
 from digipage.ui.dialogs.settings import SettingsDialog
 from digipage.ui.dialogs.log_viewer import LogViewerDialog
-from digipage.ui.modes.dual_scan_mode import DualScanModeWidget
-from digipage.ui.modes.single_split_mode import SingleSplitModeWidget
+from digipage.ui.modes.dual import DualScanModeWidget
+from digipage.ui.modes.single import SingleSplitModeWidget
 
 
 # A custom widget for displaying book information in a structured, table-like row.
