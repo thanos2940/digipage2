@@ -1,104 +1,153 @@
-# DigiPage Scanner: High-Volume Scanning Assistant
+DigiPage Scanner Pro
+====================
 
-## 1. Primary Goal & Design Philosophy
+**DigiPage Scanner Pro** is a specialized desktop application designed for high-volume document digitization workflows. It streamlines the process of scanning, inspecting, correcting, and organizing book pages in real-time.
 
-The **DigiPage Scanner** is a specialized desktop application built to streamline high-volume document digitalization. It's designed for operators in a fast-paced environment, providing immediate tools for quality control and processing right at the point of scanning. This eliminates the need for a separate, time-consuming quality check later, saving significant time and effort.
+Built with **Python** and **PySide6 (Qt)**, the application is engineered for operators who need speed and reliability. It decouples the user interface from heavy image processing tasks to ensure a responsive experience even when handling high-resolution scans.
 
-The application is built around two core operational modes, each tailored to a specific scanning methodology:
+🚀 Key Features
+---------------
 
-*   **Dual Scan Mode:** The classic workflow, designed for scanners that produce two separate image files for the left and right pages of a book spread. The UI presents two large canvases, allowing the operator to inspect and edit both pages simultaneously.
+### 1\. Specialized Scanning Modes
 
-*   **Single Split Mode:** A newer, more automated workflow for scanners that produce a single, wide image of an entire open book. The application intelligently splits this one image into two separate, cropped pages based on a user-defined layout, minimizing manual intervention.
+*   **Dual Scan Mode:** The standard workflow for scanners that produce separate image files for left and right pages. Displays two large canvases for simultaneous inspection.
+    
+*   **Single-Shot Split Mode:** Designed for overhead scanners that capture a full book spread in a single wide image. The application automatically splits the image into two pages based on a smart, persistent crop layout.
+    
 
-The philosophy is simple: **scan, instantly inspect, correct if needed, and move on.** The interface is designed to be clear, efficient, and operator-focused, keeping mouse clicks and manual steps to a minimum.
+### 2\. Real-Time Image Processing
 
-## 2. Workflows
+*   **Non-Destructive Editing:** Crop, rotate, and split operations save changes to new files or backups, preserving the original scan data where possible.
+    
+*   **Auto-Correction:** Optional automatic adjustment of lighting (autocontrast) and color cast removal using NumPy-accelerated algorithms.
+    
+*   **Smart Caching:** An optimized background worker manages an LRU cache of QPixmaps to ensure instant page navigation without UI freezes.
+    
 
-The application's workflow is determined by the "Scanner Mode" selected in the Settings.
+### 3\. Automated Workflow
 
-### Workflow 1: Dual Scan Mode
+*   **File Watcher:** Automatically detects new scans arriving in the configured folder and updates the UI instantly.
+    
+*   **Book Assembly:** One-click creation of book folders from the day's scanned pages.
+    
+*   **Archive Transfer:** Intelligent routing of completed books to network destinations based on city codes parsed from the book name (e.g., -297-).
+    
 
-This is the default mode, intended for processing pairs of images.
+🛠️ Architecture
+----------------
 
-1.  **Scan & View:** The operator scans a book spread, and the scanner saves two image files (e.g., `IMG_001.jpg`, `IMG_002.jpg`) to a pre-configured **Scan Folder**. The DigiPage application, which actively monitors this folder, immediately detects the new files and displays them in the large dual-pane canvases.
+The project follows a modular, layered architecture to separate concerns and improve maintainability.
 
-2.  **Inspect & Correct:** The operator reviews the two large page images for errors like skewed alignment, unwanted margins, or poor color. If corrections are needed, they use the intuitive, per-image toolbars to:
-    *   **Rotate:** Make fine-tuned angle adjustments.
-    *   **Crop:** Adjust the visible area of the page.
-    *   **Adjust Color:** Manually or automatically correct brightness, contrast, and color balance.
-    *   **Delete:** Remove the current pair of images if a rescan is needed.
-    *   **Replace:** Flag the current pair to be replaced by the next two scanned images, useful for correcting a bad scan without losing your place.
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   digipage/  ├── main.py                 # Application Entry Point  ├── core/                   # Logic-only Configuration & Styling  │   ├── config.py           # Typed ConfigManager & Dataclasses  │   └── theme.py            # Dynamic Stylesheet Generation  ├── data/                   # Data Persistence Layer  │   └── io.py               # JSON Log handling & Stats calculation  ├── workers/                # Background Threads (Heavy Lifting)  │   ├── scanner_worker.py   # File I/O, Image Manipulation (PIL), Archiving  │   ├── image_worker.py     # UI Image Loading & Caching  │   └── watcher.py          # Watchdog File System Monitoring  ├── ui/                     # Presentation Layer  │   ├── main_window.py      # Central Controller  │   ├── modes/              # Scan Logic Strategies (Strategy Pattern)  │   │   ├── dual.py         # Logic for 2-page view  │   │   └── single.py       # Logic for 1-page splitter view  │   ├── viewer/             # Custom Image Widget  │   │   ├── canvas.py       # Painting & Coordinate Mapping  │   │   └── handlers.py     # Mouse Interaction State Machine  │   ├── panels/             # Sidebars & Toolbars  │   └── dialogs/            # Settings & Logs  └── utils/                  # Shared Utilities   `
 
-3.  **Iterate:** The operator repeats this process for every page of the book. The application can be configured to automatically advance to the latest pair of scanned pages, allowing for a continuous, uninterrupted workflow.
+### Design Patterns Used
 
-4.  **Assemble the Book:** Once the entire book is scanned and corrected, the operator scans the book's unique QR code. This code, which represents the book's name (e.g., `BOOK-A-001-12345`), is entered into the "Book Name" field in the sidebar. Clicking **"Create Book"** gathers all the individual page images from the Scan Folder and moves them into a new, named subfolder within a temporary "Today's Books" staging area.
+*   **State Pattern:** Used in ui/viewer/handlers.py to manage complex mouse interactions (Cropping vs. Rotating vs. Panning) without massive if-else chains.
+    
+*   **Strategy Pattern:** Used in ui/modes/ to switch the entire UI logic and layout between "Dual Scan" and "Single Split" modes seamlessly.
+    
+*   **Observer Pattern:** Heavy use of Qt Signals/Slots to decouple Workers from the UI.
+    
 
-5.  **Archive to Final Destination:** At any time, the operator can click the **"Transfer All to Data"** button. The application intelligently processes every book in the "Today's Books" staging area. For each book, it automatically:
-    *   Parses the book's name to find a unique city code (e.g., `-001-`).
-    *   Looks up the pre-configured network path for that city code.
-    *   Creates a new subfolder named after the current date (e.g., `13-11`) inside the city's main data folder.
-    *   Moves the completed book folder into this dated directory, finalizing the archival process.
+📦 Installation
+---------------
 
-### Workflow 2: Single Split Mode
+### Prerequisites
 
-This mode is designed for efficiency when the scanner produces one wide image per scan.
+*   Python 3.10+
+    
+*   Virtual Environment (Recommended)
+    
 
-1.  **Scan & View:** The operator scans a book spread, and the scanner saves a single wide image (e.g., `SCAN_001.jpg`) to the **Scan Folder**. The application detects the new file and displays it in a single, large viewer.
+### Dependencies
 
-2.  **Automatic Splitting:** The application automatically performs the following steps:
-    *   It loads the crop layout (the positions of the left and right pages) that was used for the *previous* image.
-    *   It applies this layout to the new image, splitting it into two separate page images (`SCAN_001_L.jpg` and `SCAN_001_R.jpg`).
-    *   These two "final" page images are saved into a `final` subfolder within the Scan Folder.
-    *   This automatic processing happens in the background without user interaction.
+Install the required packages:
 
-3.  **Inspect & Adjust Layout:** The operator navigates through the *original* wide-scan images. The viewer shows the defined crop areas for the left and right pages. If the automatic split was incorrect (e.g., the book shifted during scanning), the operator can simply drag the crop boxes to the correct positions.
-    *   **Update Layout:** Clicking this button saves the new crop layout and immediately re-processes the image to update the final pages in the `final` folder. This new layout will then be automatically applied to all subsequent scans until it is changed again.
-    *   **Toggle Pages:** The operator can disable the left or right page if, for example, they are scanning the first or last page of a book.
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   pip install PySide6 Pillow watchdog numpy   `
 
-4.  **Assemble the Book:** This step is identical to the Dual Scan workflow. The operator enters the book name and clicks **"Create Book"**. The application gathers all the processed images from the `final` subfolder and moves them to the "Today's Books" staging area. It also performs a full cleanup, deleting the original wide-scan images and the `layout_data.json` file, preparing the Scan Folder for the next book.
+### Running the Application
 
-5.  **Archive to Final Destination:** This step is identical to the Dual Scan workflow.
+1.  Navigate to the project root directory.
+    
+2.  Run the main module:
+    
 
-## 3. Features & User Interface Explained
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python digipage/main.py   `
 
-### The Sidebar: Command & Control
+_Note: On the first run, the application will prompt you to open the Settings Dialog to configure your scan folders._
 
-The right-hand sidebar is the central hub for managing the workflow and tracking progress.
+⚙️ Configuration
+----------------
 
-*   **Performance Stats:** At a glance, the operator can see:
-    *   **Pages/Minute:** A live calculation of scanning speed.
-    *   **Pending:** The number of unprocessed images currently in the Scan Folder.
-    *   **Total Today:** A running total of all pages processed during the session (including staged and transferred books).
+The application uses a config.json file located in the root directory. While this can be edited manually, it is recommended to use the built-in **Settings Dialog**.
 
-*   **Book Creation:** A simple panel with:
-    *   A text field to enter the **Book Name**, typically from a QR code.
-    *   The **"Create Book"** button, which assembles all processed images into a book folder in the staging area.
+### Key Settings
 
-*   **Today's Books Panel:** A scrollable list showing all books created during the current session. It clearly distinguishes between:
-    *   **TODAY'S:** Books waiting in the temporary staging folder.
-    *   **DATA:** Books that have been successfully transferred to the final network archive.
+*   **Scan Folder:** The directory where your scanner saves images. The app watches this folder.
+    
+*   **Today's Books Folder:** The staging area where processed pages are assembled into book folders.
+    
+*   **City Paths:** A mapping of 3-digit codes (e.g., 001) to network paths. Used for the "Transfer to Data" feature.
+    
+*   **Scanner Mode:** Switches between dual\_scan and single\_split.
+    
 
-*   **Workflow Buttons:**
-    *   **Transfer All to Data:** The master button to initiate the automated archival process for all staged books.
-    *   **View Log:** Opens a dialog showing the complete history of all books transferred to the data archive.
-    *   **Settings:** Opens the configuration window.
+📖 User Guide
+-------------
 
-### The Bottom Bar: Navigation & Actions
+### General Navigation
 
-This bar contains the primary controls for navigating through images and performing key actions.
+*   **Next/Prev:** Use the buttons on the bottom toolbar or the **Mouse Wheel**.
+    
+*   **Zoom:** Double-click an image or use **Ctrl + Scroll**.
+    
+*   **Pan:** Click and drag when zoomed in.
+    
 
-*   **Status Label:** Displays the current position (e.g., "Pages 1-2 of 150").
-*   **Navigation:** `Previous`, `Next`, and `Jump to End` buttons for moving through the image set. The mouse wheel can also be used for navigation.
-*   **Refresh:** Manually rescans the Scan Folder for any changes.
-*   **Delete:** Deletes the currently displayed image or pair of images (with confirmation).
-*   **Replace:** Toggles "Replace Mode." When active, the next scan(s) will automatically replace the currently displayed image(s). This is a quick way to fix a bad scan without losing your place in the sequence.
+### Dual Scan Workflow
 
-## 4. Configuration
+1.  Scan a spread (2 images appear).
+    
+2.  **Crop:** Click "Crop" and drag the box handles.
+    
+3.  **Rotate:** Click "Rotate" and drag the slider at the bottom of the image.
+    
+4.  **Delete/Replace:** Use the toolbar buttons to manage bad scans.
+    
 
-The application's behavior is controlled by a few key files:
+### Single-Shot Split Workflow
 
-*   **`config.json`:** The main settings file. This is where the operator configures essential paths like the **Scan Folder**, the **Today's Books Folder**, and the network paths for each **City Code**. It also stores the selected theme and the active **Scanner Mode** (`dual_scan` or `single_split`).
+1.  Scan a spread (1 wide image appears).
+    
+2.  The app automatically attempts to split the page based on the _previous_ layout.
+    
+3.  **Adjust Split:** If the book moved, drag the green (left) or red (right) boxes to correct the crop area.
+    
+4.  **Toggle Pages:** Click "Left Page" or "Right Page" on the toolbar to disable a page if it's blank.
+    
+5.  **Update:** Click "Update Layout" to re-process the split files immediately.
+    
 
-*   **`books_complete_log.json`:** A permanent record of all work. Every time books are transferred to the final archive, a timestamped entry is added to this log, including the book's name, page count, and final destination path.
+👨‍💻 Development
+-----------------
 
-*   **`layout_data.json`:** (Single Split Mode only) This file is created inside the Scan Folder. It stores the crop layout (the position and size of the left and right page boxes) for each image. When a new book is created, this file is automatically deleted to ensure the next book starts with a fresh, default layout.
+### Adding a New Interaction Mode
+
+To add a new tool to the image viewer (e.g., a "Despeckle" brush):
+
+1.  Create a new class in ui/viewer/handlers.py inheriting from InteractionHandler.
+    
+2.  Implement on\_mouse\_press, move, release, and paint.
+    
+3.  Register the handler in ui/viewer/canvas.py.
+    
+
+### Adding a New Worker Task
+
+To add a heavy task (e.g., OCR):
+
+1.  Add a method to workers/scanner\_worker.py decorated with @Slot.
+    
+2.  Emit a signal when finished.
+    
+3.  Connect the signal in ui/main\_window.py.
